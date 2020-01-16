@@ -1,0 +1,82 @@
+#!/bin/bash
+mkdir -p log
+APP_CONFIG="start.py"
+APP_MODULE=wsgi:app
+
+
+
+function start() {
+    if ! [ -x "$(command -v gunicorn)" ]; then
+        echo 'Error: gunicorn is not installed.'
+        exit 1
+    fi
+    
+    count=`ps -ef | grep gunicorn | grep -v grep | wc -l`
+    if [ $count -gt 0 ]; then
+        echo "app is running"
+        return
+    fi
+    
+    gunicorn -c $APP_CONFIG $APP_MODULE
+    sleep 2
+    for ((i=1; i<=20; i++))
+    do
+        pid=`ps -ef | grep gunicorn | grep -v grep | cut -c 9-15`
+        if [ "$pid" != "" ]; then
+            echo '已启动，pid=' $pid
+            break
+        fi
+    done
+}
+
+
+function stop() {
+    while :
+    do
+        ps -ef | grep gunicorn | grep -v grep | cut -c 9-15 | xargs --no-run-if-empty kill -s 9
+        count=`ps -ef | grep gdms | grep jboss | grep -v "grep" | wc -l`
+        if [ $count -eq 0 ]; then
+            echo "app is stoped"
+            break
+        else
+            sleep 1
+        fi
+    done
+}
+
+
+function restart() {
+    stop
+    sleep 2
+    start
+}
+
+
+function status() {
+    count=`ps -ef | grep gunicorn | grep -v grep | wc -l`
+    if [ $count -gt 0 ]; then
+        echo "app is running，pid=" `ps -ef | grep gunicorn | grep -v grep | cut -c 9-15`
+    else
+        echo "app is stoped"
+    fi
+}
+
+
+function help() {
+    echo "$0 start|stop|restart|status"
+}
+
+
+if [ "$1" == "" ]; then
+    help
+elif [ "$1" == "start" ];then
+    start
+elif [ "$1" == "stop" ];then
+    stop
+elif [ "$1" == "restart" ];then
+    restart
+elif [ "$1" == "status" ];then
+    status
+else
+    help
+fi
